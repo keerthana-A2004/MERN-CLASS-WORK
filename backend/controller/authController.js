@@ -1,83 +1,68 @@
-//Import user model
-const User = require('../models/user');
+// Import User model
+const User = require("../models/User");
+// For hashing passwords
+const bcrypt = require("bcryptjs");
+// For token generation
+const jwt = require("jsonwebtoken");
 
-//for hasing passwords
-const bcrypt = require('bcryptjs');
-
-//for token generation
-const jwt = require('jsonwebtoken');
-
-//Register a new user
-const registerUser = async (req, res) => {
-    const{name,email,password,role}= req.body;
-
-    try{
-        //Hash the password using bcrypt library
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const User = await User.create({
-            name,
-            email,
-            password: hashedPassword,
-            role
-        });
-        res.status(201).json({
-            message: "User registerd successfully",
-        })
-    }
-    catch(error){
-        res.status(500),json({
-            message: "Error registering user",
-            error: error.message,
-        });
-    }
-
-};
-exports.registerUser = async (req, res) => {
-  //Get email and password from request body
-  const { email, password } = req.body;
-
-  //Find user by email
-  //It will search in the database - user schema
-
+exports.register = async (req, res) => {
+  // Destructure request body
+  const { name, email, password, role } = req.body;
   try {
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    // Save user
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+    });
+    // Respond with success message
+    // The user object will not include the password field in the response
+    res.status(201).json({ message: "User registered." });
+  } catch (error) {
+    // Handle errors, such as duplicate email
+    res.status(400).json({ error: error.message });
+  }
+};
+
+exports.login = async (req, res) => {
+  // Get login credentials
+  const { email, password } = req.body;
+  try {
+    // Look for user
     const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found",
-      });
-    }
-
+    // Compare password with hashed password in database
+    // bcrypt.compare returns a promise that resolves to true or false
+    // If the passwords match, it resolves to true; otherwise, false
+    // If the passwords do not match, we return an error response
     const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
 
-    if (!isMatch) {
-      return res.status(401).json({
-        message:
-"Invalid credentials",
-      });
-    }
-
-    //Generate JWT token
-    //The jwt sign method is used to create a new token
-    //It takes two arguments - payload and secret key
+    // Generate JWT token
+    // The token will include the user's ID and role
+    // The token is signed with a secret key stored in environment variables
+    // The token can be used for authentication in subsequent requests
+    // The token will be sent back to the client in the response
+    // The client can store the token (e.g., in localStorage) and include it
+    // in the Authorization header for protected routes
+    // The token will expire after a certain period (e.g., 1 hour) for security
+    // The token can be verified on the server to ensure it is valid and not tampered with
+    // The user's ID and role can be extracted from the token for authorization checks
+    // The token will be used to authenticate the user in future requests
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { id: user._id, role: user.role },
       process.env.JWT_SECRET
     );
-
     res.json({
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      // Return user info
+      user: { name: user.name, email: user.email, role: user.role },
     });
   } catch (error) {
-    res.status(500).json({
-      message:"Error logging in",
-      error:error.message,
-    });
-}
+    res.status(500).json({ error: error.message });
+  }
 };

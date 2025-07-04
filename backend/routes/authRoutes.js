@@ -1,13 +1,18 @@
-
-//Express - HTTP server framework
-//bcrypt - Password hashing library
+// Import Express
 const express = require("express");
-
-const{ registerUser, login } = require("../controller/authController");
-//create new router instance
+// Import the controller functions
+// These functions handle the logic for user registration and login
+// They will be used in the routes to process incoming requests
+// The register function will handle user registration
+// The login function will handle user login
+const { register, login } = require("../controllers/authController");
+// Create a router instance
 const router = express.Router();
-router.post("/register",registerUser);
-router.post("/login",login);
+
+// Route for registration
+router.post("/register", register);
+// Route for login
+router.post("/login", login);
+
+// Export router to use in server.js
 module.exports = router;
-
-
